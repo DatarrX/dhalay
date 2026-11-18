@@ -1,0 +1,20 @@
+{
+  "name": "dhalay-headless-knowledge-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static bilingual Markdown API and Universal Widget for dhalay",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "dev": "npm run build && npx serve dist"
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.3",
+    "marked": "^15.0.12"
+  },
+  "devDependencies": {
+    "terser": "^5.39.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
