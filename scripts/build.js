@@ -2,6 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { spawnSync } = require("child_process");
 const { minify } = require("terser");
 const { languageSplitter, buildAttribution } = require("./languageSplitter");
 
@@ -172,6 +173,36 @@ async function main() {
   );
   fs.writeFileSync(ragTarget, `${ragLines.join("\n")}\n`, "utf8");
 
+  const bm25Script = path.join(ROOT, "scripts/build_bm25.py");
+  const pythonCandidates = [
+    { command: "python", args: [bm25Script, path.join(DIST, "api/v1")] },
+    { command: "python3", args: [bm25Script, path.join(DIST, "api/v1")] },
+    { command: "py", args: ["-3", bm25Script, path.join(DIST, "api/v1")] },
+  ];
+  let bm25Result;
+  let usedPython;
+  for (const candidate of pythonCandidates) {
+    const result = spawnSync(candidate.command, candidate.args, {
+      cwd: ROOT,
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    if (!result.error) {
+      bm25Result = result;
+      usedPython = candidate.command;
+      break;
+    }
+  }
+  if (!bm25Result) {
+    throw new Error("Python 3 is required to build the RAG BM25 index.");
+  }
+  if (bm25Result.status !== 0) {
+    throw new Error(
+      `Failed to build RAG BM25 index with ${usedPython}: ${bm25Result.stderr || bm25Result.stdout}`
+    );
+  }
+  if (bm25Result.stdout) process.stdout.write(bm25Result.stdout);
+
   ensureDir(path.join(DIST, "sdk"));
   const sdkPath = path.join(ROOT, "src/sdk/dhalay-widget.js");
   const sdkSource = fs.readFileSync(sdkPath, "utf8");
@@ -203,6 +234,10 @@ async function main() {
       "",
       "/api/v1/index.json",
       "  Content-Type: application/json; charset=utf-8",
+      "",
+      "/api/v1/*.json",
+      "  Content-Type: application/json; charset=utf-8",
+      "  Access-Control-Allow-Origin: *",
       "",
       "/api/v1/pages/*",
       "  Content-Type: application/json; charset=utf-8",
